@@ -1,0 +1,44 @@
+name: Track Viral YouTube Videos
+
+on:
+  schedule:
+    # 每 6 小時執行一次（UTC 0:00 / 6:00 / 12:00 / 18:00）
+    - cron: "0 */6 * * *"
+  # 可在 Actions 頁面手動觸發，方便測試
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 允許 commit/push tracking.json
+  issues: write     # 允許建立 Issue
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run viral tracker
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python -m src.main
+
+      - name: Commit updated tracking data
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update tracking.json [skip ci]"
+          file_pattern: "data/tracking.json"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
