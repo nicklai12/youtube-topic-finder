@@ -1,5 +1,28 @@
-# ── 搜尋主題與關鍵字 ──────────────────────────────────────────────────────────
-TOPICS = {
+"""從專案根目錄的 config.yml 載入設定；找不到檔案時使用預設值。"""
+
+from __future__ import annotations
+
+import os
+
+import yaml
+
+# ── 載入 config.yml ───────────────────────────────────────────────────────────
+_CONFIG_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "config.yml")
+)
+
+
+def _load_yaml() -> dict:
+    if os.path.exists(_CONFIG_PATH):
+        with open(_CONFIG_PATH, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    return {}
+
+
+_cfg = _load_yaml()
+
+# ── 預設值 ────────────────────────────────────────────────────────────────────
+_DEFAULT_TOPICS = {
     "tech": {
         "label": "tech",
         "keywords": [
@@ -18,33 +41,22 @@ TOPICS = {
     },
 }
 
-# ── 搜尋參數 ──────────────────────────────────────────────────────────────────
-# 搜尋最近幾天內發布的影片
-SEARCH_PUBLISHED_WITHIN_DAYS = 7
+# ── 搜尋主題與關鍵字（從 config.yml 的 topics 區塊載入）────────────────────────
+TOPICS: dict = _cfg.get("topics", _DEFAULT_TOPICS)
 
-# 每個關鍵字最多取幾筆搜尋結果（search.list 每次最多 50）
-SEARCH_MAX_RESULTS = 25
+# ── 搜尋參數 ──────────────────────────────────────────────────────────────────
+_search = _cfg.get("search", {})
+SEARCH_PUBLISHED_WITHIN_DAYS: int = _search.get("published_within_days", 7)
+SEARCH_MAX_RESULTS: int = _search.get("max_results", 25)
 
 # ── 爆款判定條件 ──────────────────────────────────────────────────────────────
-# 門檻條件 1：發布後 N 小時內，觀看次數超過 M
-THRESHOLD_FAST = {
-    "hours": 48,
-    "views": 50_000,
-}
-
-# 門檻條件 2：發布後 N 天內，觀看次數超過 M
-THRESHOLD_SLOW = {
-    "days": 7,
-    "views": 500_000,
-}
-
-# 成長條件：上次記錄到現在，觀看數成長率超過此值（0~1 之間，1.0 = 100%）
-GROWTH_RATE_THRESHOLD = 1.0
+_viral = _cfg.get("viral", {})
+THRESHOLD_FAST: dict = _viral.get("threshold_fast", {"hours": 48, "views": 50_000})
+THRESHOLD_SLOW: dict = _viral.get("threshold_slow", {"days": 7, "views": 500_000})
+GROWTH_RATE_THRESHOLD: float = _viral.get("growth_rate", 1.0)
 
 # ── 配額保護 ──────────────────────────────────────────────────────────────────
-# 每次執行的最大 YouTube API 配額消耗上限（保守設為 3,000，遠低於 10,000/day）
-MAX_UNITS_PER_RUN = 3_000
+MAX_UNITS_PER_RUN: int = _cfg.get("quota", {}).get("max_units_per_run", 3_000)
 
 # ── 追蹤資料清理 ──────────────────────────────────────────────────────────────
-# 超過幾天未更新的影片記錄，從 tracking.json 中移除
-TRACKING_EXPIRY_DAYS = 14
+TRACKING_EXPIRY_DAYS: int = _cfg.get("tracking", {}).get("expiry_days", 14)

@@ -45,33 +45,65 @@ Private repo 也支援，但每月免費分鐘數為 2,000 分鐘（本專案每
 
 ## 自訂設定
 
-編輯 [src/config.py](src/config.py) 可調整：
+複製範本檔後編輯即可自訂所有參數：
 
-```python
-# 搜尋主題與關鍵字
-TOPICS = {
-    "tech": { "keywords": ["Python tutorial 2025", ...] },
-    "finance": { "keywords": ["投資理財 2025", ...] },
-}
-
-# 爆款門檻（可降低以測試）
-THRESHOLD_FAST = {"hours": 48, "views": 50_000}
-THRESHOLD_SLOW = {"days": 7, "views": 500_000}
-
-# 成長率門檻（1.0 = 100%）
-GROWTH_RATE_THRESHOLD = 1.0
+```bash
+cp config.yml.example config.yml
 ```
+
+`config.yml` 已加入 `.gitignore`，不會被 commit（保護個人化設定）。  
+若刪除 `config.yml`，程式會自動使用 `src/config.py` 內的預設值繼續運行。
+
+```yaml
+# config.yml — 可自訂項目
+
+topics:
+  tech:
+    label: tech
+    keywords:
+      - Python tutorial 2025
+      - AI programming
+      - software engineering
+  finance:
+    label: finance
+    keywords:
+      - 投資理財 2025
+      - 股票分析
+      - ETF 被動投資
+
+viral:
+  threshold_fast:     # 發布 48 小時內 > 5 萬觀看
+    hours: 48
+    views: 50000
+  threshold_slow:     # 發布 7 天內 > 50 萬觀看
+    days: 7
+    views: 500000
+  growth_rate: 1.0    # 成長率門檻（1.0 = 100%）
+
+search:
+  published_within_days: 7
+  max_results: 25
+
+quota:
+  max_units_per_run: 3000
+
+tracking:
+  expiry_days: 14
+```
+
+完整參數說明請參考 [config.yml.example](config.yml.example)。
 
 ## 專案結構
 
 ```
 youtube-topic-finder/
 ├── .github/workflows/track-viral.yml  # 定時排程 + 手動觸發
+├── config.yml.example                 # 設定檔範本（複製為 config.yml 使用）
 ├── data/tracking.json                 # 觀看數歷史（自動維護）
 ├── docs/
 │   └── 01-youtube-viral-tracker-plan.md
 ├── src/
-│   ├── config.py          # 搜尋主題、爆款門檻、配額上限
+│   ├── config.py          # 載入 config.yml + 預設值
 │   ├── youtube_client.py  # YouTube API 封裝 + 配額計算器
 │   ├── tracker.py         # tracking.json 讀寫 + 成長率計算
 │   ├── viral_detector.py  # 爆款判定邏輯
