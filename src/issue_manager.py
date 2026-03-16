@@ -65,10 +65,11 @@ class IssueManager:
         viral_reason: str,
         topic_label: str,
         growth_rate: float | None,
+        analysis: dict[str, Any] | None = None,
     ) -> None:
         """為爆款影片建立 GitHub Issue。"""
         title = f"🔥 {video['title']}"
-        body = _build_body(video, viral_reason, growth_rate)
+        body = _build_body(video, viral_reason, growth_rate, analysis)
         labels = _pick_labels(topic_label, viral_reason)
 
         try:
@@ -105,6 +106,7 @@ def _build_body(
     video: dict[str, Any],
     viral_reason: str,
     growth_rate: float | None,
+    analysis: dict[str, Any] | None = None,
 ) -> str:
     published_at = video["published_at"]
     if published_at.tzinfo is None:
@@ -117,7 +119,7 @@ def _build_body(
 
     marker = _MARKER_TPL.format(video_id=video["video_id"])
 
-    return f"""## 影片資訊
+    base = f"""## 影片資訊
 
 [![縮圖]({video['thumbnail_url']})]({video['url']})
 
@@ -138,6 +140,31 @@ def _build_body(
 
 {marker}
 """
+
+    if analysis is None:
+        return base
+
+    angles_md = "\n".join(
+        f"{i + 1}. {angle}" for i, angle in enumerate(analysis.get("recreate_angles", []))
+    )
+    source_note = "有字幕" if analysis.get("has_transcript") else "僅 metadata"
+
+    ai_section = f"""## 🤖 AI 分析
+
+### 爆紅原因
+{analysis.get('viral_reason', '')}
+
+### 內容摘要
+{analysis.get('summary', '')}
+
+### 💡 二創角度建議
+{angles_md}
+
+> ℹ️ 分析由 Gemini Flash 自動生成，僅供參考。字幕來源：{source_note}
+"""
+
+    # 在 marker 前插入 AI 區塊
+    return base.replace(f"---\n\n{marker}", f"---\n\n{ai_section}\n---\n\n{marker}")
 
 
 def _pick_labels(topic_label: str, viral_reason: str) -> list[str]:

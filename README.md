@@ -17,6 +17,7 @@
 - **自動去重**：同一支影片不會重複建立 Issue
 - **自動分類**：Issue 自動貼上 `viral`、`tech`/`finance`、`view-threshold`/`growth-spike` 標籤
 - **自動關閉**：觀看數連續多次檢查無明顯成長（預設連續 3 次、即 18 小時）時，自動關閉 Issue 並留言說明
+- **AI 分析（可選）**：自動擷取影片字幕，透過 Gemini Flash 生成爆紅原因分析、內容摘要、二創角度建議，嵌入 Issue。未設定 API Key 時自動跳過，不影響原有功能
 - **歷史追蹤**：`data/tracking.json` 記錄每支影片的觀看數歷史，由 Actions 自動 commit 更新
 
 ## 快速開始
@@ -35,8 +36,10 @@
 | Secret 名稱 | 說明 |
 |-------------|------|
 | `YOUTUBE_API_KEY` | 上一步取得的 YouTube API 金鑰 |
+| `GEMINI_API_KEY` | （可選）Gemini API 金鑰，用於 AI 分析功能。從 [Google AI Studio](https://aistudio.google.com/) 免費取得 |
 
 > `GITHUB_TOKEN` 由 GitHub Actions 自動提供，無需手動設定。
+> 未設定 `GEMINI_API_KEY` 時，AI 分析功能會自動跳過，Issue 照常建立。
 
 ### 3. 確認 Repo 為 Public（建議）
 
@@ -101,6 +104,12 @@ auto_close:
   enabled: true        # 觀看數不再成長時自動關閉 Issue
   growth_below: 0.05   # 低於 5% 視為無成長
   stale_count: 3       # 連續 3 次（18 小時）無成長後自動關閉
+
+analyzer:
+  enabled: true                                   # 啟用 AI 分析（需設定 GEMINI_API_KEY）
+  model: "gemini-2.0-flash"                        # 使用的 Gemini 模型
+  preferred_langs: ["zh-TW", "zh-Hant", "zh", "en"] # 字幕語言偏好
+  max_transcript_chars: 15000                      # 送入 LLM 的字幕最大字元數
 ```
 
 完整參數說明請參考 [config.yml.example](config.yml.example)。
@@ -113,13 +122,16 @@ youtube-topic-finder/
 ├── config.yml.example                 # 設定檔範本（複製為 config.yml 使用）
 ├── data/tracking.json                 # 觀看數歷史（自動維護）
 ├── docs/
-│   └── 01-youtube-viral-tracker-plan.md
+│   ├── 01-youtube-viral-tracker-plan.md
+│   └── 02-ai-analyzer-plan.md
 ├── src/
 │   ├── config.py          # 載入 config.yml + 預設值
 │   ├── youtube_client.py  # YouTube API 封裝 + 配額計算器
 │   ├── tracker.py         # tracking.json 讀寫 + 成長率計算
 │   ├── viral_detector.py  # 爆款判定邏輯
 │   ├── issue_manager.py   # GitHub Issue 建立 + 去重 + 自動關閉
+│   ├── transcript.py      # YouTube 字幕擷取（免配額）
+│   ├── analyzer.py        # Gemini Flash AI 分析
 │   └── main.py            # 主入口
 ├── requirements.txt
 └── README.md
@@ -130,5 +142,6 @@ youtube-topic-finder/
 | 資源 | 免費額度 | 預估每日用量 |
 |------|---------|------------|
 | YouTube Data API v3 | 10,000 units/天 | ~2,420 units（24%） |
+| Gemini Flash API | 1,500 req/天 | ~40 req（2.7%） |
 | GitHub Actions（Public） | 無限分鐘 | ~8 分鐘 |
 | GitHub API | 5,000 req/小時 | <200 req |

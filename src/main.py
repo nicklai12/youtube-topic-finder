@@ -7,7 +7,9 @@ import os
 import sys
 
 from . import config, tracker
+from .analyzer import analyze_video
 from .issue_manager import IssueManager
+from .transcript import get_transcript
 from .viral_detector import is_viral
 from .youtube_client import QuotaExceededError, YouTubeClient
 
@@ -91,7 +93,21 @@ def main() -> None:
                 logger.info("影片 %s 已有 Issue，跳過。", video_id)
                 continue
 
-            im.create_issue(video, reason, topic_label, growth_rate)
+            # AI 分析（字幕 + Gemini）
+            analysis = None
+            if config.ANALYZER_ENABLED:
+                transcript = get_transcript(
+                    video_id,
+                    preferred_langs=config.ANALYZER_PREFERRED_LANGS,
+                    max_chars=config.ANALYZER_MAX_TRANSCRIPT_CHARS,
+                )
+                analysis = analyze_video(
+                    video,
+                    transcript,
+                    model=config.ANALYZER_MODEL,
+                )
+
+            im.create_issue(video, reason, topic_label, growth_rate, analysis)
             issues_created += 1
 
     # ── 清理過期記錄並儲存 ────────────────────────────────────────────────────
