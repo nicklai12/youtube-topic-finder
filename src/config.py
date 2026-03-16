@@ -60,3 +60,12 @@ MAX_UNITS_PER_RUN: int = _cfg.get("quota", {}).get("max_units_per_run", 3_000)
 
 # ── 追蹤資料清理 ──────────────────────────────────────────────────────────────
 TRACKING_EXPIRY_DAYS: int = _cfg.get("tracking", {}).get("expiry_days", 14)
+
+# ── 自動關閉 Issue ─────────────────────────────────────────────────────────
+_auto_close = _cfg.get("auto_close", {})
+# 當成長率低於此值時，計為一次「無成長」
+AUTO_CLOSE_GROWTH_BELOW: float = _auto_close.get("growth_below", 0.05)
+# 連續幾次「無成長」後自動關閉 Issue
+AUTO_CLOSE_STALE_COUNT: int = _auto_close.get("stale_count", 3)
+# 是否啟用自動關閉
+AUTO_CLOSE_ENABLED: bool = _auto_close.get("enabled", True)

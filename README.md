@@ -16,6 +16,7 @@
   - 成長條件：6 小時內觀看數成長 > 100%
 - **自動去重**：同一支影片不會重複建立 Issue
 - **自動分類**：Issue 自動貼上 `viral`、`tech`/`finance`、`view-threshold`/`growth-spike` 標籤
+- **自動關閉**：觀看數連續多次檢查無明顯成長（預設連續 3 次、即 18 小時）時，自動關閉 Issue 並留言說明
 - **歷史追蹤**：`data/tracking.json` 記錄每支影片的觀看數歷史，由 Actions 自動 commit 更新
 
 ## 快速開始
@@ -95,6 +96,11 @@ quota:
 
 tracking:
   expiry_days: 14
+
+auto_close:
+  enabled: true        # 觀看數不再成長時自動關閉 Issue
+  growth_below: 0.05   # 低於 5% 視為無成長
+  stale_count: 3       # 連續 3 次（18 小時）無成長後自動關閉
 ```
 
 完整參數說明請參考 [config.yml.example](config.yml.example)。
@@ -113,7 +119,7 @@ youtube-topic-finder/
 │   ├── youtube_client.py  # YouTube API 封裝 + 配額計算器
 │   ├── tracker.py         # tracking.json 讀寫 + 成長率計算
 │   ├── viral_detector.py  # 爆款判定邏輯
-│   ├── issue_manager.py   # GitHub Issue 建立 + 去重
+│   ├── issue_manager.py   # GitHub Issue 建立 + 去重 + 自動關閉
 │   └── main.py            # 主入口
 ├── requirements.txt
 └── README.md

@@ -59,10 +59,32 @@ def get_growth_rate(video_id: str, current_views: int, data: dict[str, Any]) -> 
 
 
 def update_record(video_id: str, view_count: int, data: dict[str, Any]) -> None:
-    """更新或新建某影片的追蹤記錄。"""
+    """更新或新建某影片的追蹤記錄，並維護 stale_count。"""
+    now = datetime.now(timezone.utc).isoformat()
+    existing = data.get(video_id)
+
+    if existing is None:
+        # 新記錄
+        data[video_id] = {
+            "view_count": view_count,
+            "updated_at": now,
+            "stale_count": 0,
+        }
+        return
+
+    last_views = existing.get("view_count", 0)
+    growth_rate = (view_count - last_views) / last_views if last_views > 0 else None
+
+    # 成長率低於閾值 → stale_count +1；否則重置
+    if growth_rate is not None and growth_rate < config.AUTO_CLOSE_GROWTH_BELOW:
+        stale_count = existing.get("stale_count", 0) + 1
+    else:
+        stale_count = 0
+
     data[video_id] = {
         "view_count": view_count,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": now,
+        "stale_count": stale_count,
     }
 
 

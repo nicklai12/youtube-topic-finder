@@ -56,3 +56,12 @@ quota:
 tracking:
   # 超過幾天未更新的影片記錄，從 data/tracking.json 中自動移除
   expiry_days: 14
+
+# ── 自動關閉 Issue ─────────────────────────────────────────────────────────
+auto_close:
+  # 是否啟用自動關閉（觀看數不再成長時自動 close Issue）
+  enabled: true
+  # 當成長率低於此值時，計為一次「無成長」（0.05 = 5%）
+  growth_below: 0.05
+  # 連續幾次檢查「無成長」後自動關閉（預設 3 次 = 18 小時無成長）
+  stale_count: 3

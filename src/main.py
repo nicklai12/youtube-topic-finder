@@ -98,11 +98,25 @@ def main() -> None:
     tracker.purge_expired(tracking_data)
     tracker.save(tracking_data)
 
+    # ── 自動關閉觀看數停滯的 Issue ────────────────────────────────────────────
+    issues_closed = 0
+    if config.AUTO_CLOSE_ENABLED:
+        for video_id, record in tracking_data.items():
+            stale_count = record.get("stale_count", 0)
+            if stale_count >= config.AUTO_CLOSE_STALE_COUNT:
+                if im.close_stale_issue(video_id):
+                    issues_closed += 1
+                    # 重置 stale_count 避免下次重複觸發
+                    record["stale_count"] = 0
+        if issues_closed:
+            tracker.save(tracking_data)
+
     # ── 執行摘要 ──────────────────────────────────────────────────────────────
     logger.info(
-        "執行完畢｜檢查影片：%d 支｜新建 Issue：%d 個｜API 配額消耗：%d units",
+        "執行完畢｜檢查影片：%d 支｜新建 Issue：%d 個｜關閉 Issue：%d 個｜API 配額消耗：%d units",
         videos_checked,
         issues_created,
+        issues_closed,
         yt.units_used,
     )
 

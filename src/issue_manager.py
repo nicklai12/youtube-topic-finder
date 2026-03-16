@@ -44,6 +44,21 @@ class IssueManager:
             logger.warning("Issue 搜尋失敗（%s），保守跳過: %s", video_id, exc)
             return True  # 保守處理：搜尋失敗時視為已存在，避免重複建立
 
+    def close_stale_issue(self, video_id: str) -> bool:
+        """關閉指定 video_id 的 Issue（觀看數不再成長時呼叫）。回傳是否成功關閉。"""
+        marker = _MARKER_TPL.format(video_id=video_id)
+        query = f'"{marker}" repo:{self._repo.full_name} is:issue is:open'
+        try:
+            results = self._gh.search_issues(query)
+            for issue in results:
+                issue.create_comment("📉 觀看數已連續多次檢查無明顯成長，自動關閉此 Issue。")
+                issue.edit(state="closed")
+                logger.info("Issue #%d 已自動關閉（影片 %s 觀看數停滯）", issue.number, video_id)
+                return True
+        except GithubException as exc:
+            logger.warning("關閉 Issue 失敗（%s）: %s", video_id, exc)
+        return False
+
     def create_issue(
         self,
         video: dict[str, Any],
