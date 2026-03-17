@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -90,43 +91,61 @@ def analyze_video(
         transcript_section=transcript_section,
     )
 
-    try:
-        genai.configure(api_key=key)
-        client = genai.GenerativeModel(model)
-        response = client.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=0.4,
-                max_output_tokens=1024,
-            ),
-        )
+    max_retries = 3
+    base_delay = 15  # 秒
 
-        raw = response.text.strip()
+    for attempt in range(1, max_retries + 1):
+        try:
+            genai.configure(api_key=key)
+            client = genai.GenerativeModel(model)
+            response = client.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(
+                    temperature=0.4,
+                    max_output_tokens=1024,
+                ),
+            )
 
-        # 擷取 JSON（有時模型會在 JSON 前後加 markdown code fence）
-        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if not json_match:
-            logger.warning("影片 %s AI 分析回傳格式異常，無法解析 JSON", video["video_id"])
+            raw = response.text.strip()
+
+            # 擷取 JSON（有時模型會在 JSON 前後加 markdown code fence）
+            json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+            if not json_match:
+                logger.warning("影片 %s AI 分析回傳格式異常，無法解析 JSON", video["video_id"])
+                return None
+
+            result = json.loads(json_match.group())
+
+            # 驗證必要欄位
+            required = {"viral_reason", "summary", "recreate_angles"}
+            if not required.issubset(result.keys()):
+                logger.warning("影片 %s AI 分析結果缺少必要欄位: %s", video["video_id"], required - result.keys())
+                return None
+
+            if not isinstance(result["recreate_angles"], list):
+                result["recreate_angles"] = [str(result["recreate_angles"])]
+
+            result["has_transcript"] = transcript is not None
+            logger.info("影片 %s AI 分析完成（字幕：%s）", video["video_id"], "有" if transcript else "無")
+            return result
+
+        except json.JSONDecodeError as exc:
+            logger.warning("影片 %s AI 分析 JSON 解析失敗: %s", video["video_id"], exc)
+            return None
+        except Exception as exc:
+            exc_str = str(exc)
+            if "429" in exc_str or "quota" in exc_str.lower():
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** (attempt - 1))
+                    logger.warning(
+                        "影片 %s AI 分析遇到速率限制，第 %d/%d 次重試，等待 %ds...",
+                        video["video_id"], attempt, max_retries, delay,
+                    )
+                    time.sleep(delay)
+                    continue
+                logger.warning("影片 %s AI 分析已達最大重試次數，配額仍不足: %s", video["video_id"], exc)
+            else:
+                logger.warning("影片 %s AI 分析失敗: %s", video["video_id"], exc)
             return None
 
-        result = json.loads(json_match.group())
-
-        # 驗證必要欄位
-        required = {"viral_reason", "summary", "recreate_angles"}
-        if not required.issubset(result.keys()):
-            logger.warning("影片 %s AI 分析結果缺少必要欄位: %s", video["video_id"], required - result.keys())
-            return None
-
-        if not isinstance(result["recreate_angles"], list):
-            result["recreate_angles"] = [str(result["recreate_angles"])]
-
-        result["has_transcript"] = transcript is not None
-        logger.info("影片 %s AI 分析完成（字幕：%s）", video["video_id"], "有" if transcript else "無")
-        return result
-
-    except json.JSONDecodeError as exc:
-        logger.warning("影片 %s AI 分析 JSON 解析失敗: %s", video["video_id"], exc)
-        return None
-    except Exception as exc:
-        logger.warning("影片 %s AI 分析失敗: %s", video["video_id"], exc)
-        return None
+    return None

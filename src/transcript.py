@@ -38,43 +38,11 @@ def get_transcript(
     langs = preferred_langs or _DEFAULT_PREFERRED_LANGS
 
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        ytt_api = YouTubeTranscriptApi()
+        fetched = ytt_api.fetch(video_id, languages=langs)
 
-        # 嘗試依語言偏好取得字幕
-        transcript = None
-        for lang in langs:
-            try:
-                transcript = transcript_list.find_transcript([lang])
-                break
-            except Exception:
-                continue
-
-        # 若偏好語言都沒有，嘗試取得任何可用字幕（含自動生成）
-        if transcript is None:
-            try:
-                # 先嘗試手動字幕
-                transcript = transcript_list.find_manually_created_transcript(
-                    transcript_list._manually_created_transcripts.keys()
-                )
-            except Exception:
-                pass
-
-        if transcript is None:
-            try:
-                # 再嘗試自動生成字幕
-                transcript = transcript_list.find_generated_transcript(
-                    transcript_list._generated_transcripts.keys()
-                )
-            except Exception:
-                pass
-
-        if transcript is None:
-            logger.debug("影片 %s 無任何可用字幕", video_id)
-            return None
-
-        # 將字幕片段拼接為純文字
-        fetched = transcript.fetch()
-        text = " ".join(segment.get("text", "") for segment in fetched)
+        # 將字幕片段拼接為純文字（v1.x snippet 為 dataclass，使用 .text 屬性）
+        text = " ".join(snippet.text for snippet in fetched)
         text = text.strip()
 
         if not text:
@@ -84,7 +52,7 @@ def get_transcript(
         if len(text) > max_chars:
             text = text[:max_chars] + "…（字幕已截斷）"
 
-        logger.debug("影片 %s 字幕擷取成功，%d 字元（語言：%s）", video_id, len(text), transcript.language_code)
+        logger.debug("影片 %s 字幕擷取成功，%d 字元（語言：%s）", video_id, len(text), fetched.language_code)
         return text
 
     except TranscriptsDisabled:
