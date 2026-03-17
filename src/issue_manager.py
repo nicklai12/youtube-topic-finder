@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import timezone
 from typing import Any
 
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 # 嵌入 Issue body 的隱藏錨點，用於去重識別（不影響顯示）
 _MARKER_TPL = "<!-- video_id: {video_id} -->"
+_MARKER_RE = re.compile(r"<!-- video_id: ([\w-]+) -->")
 
 # GitHub Issue Labels（若不存在會自動建立）
 _LABEL_META = {
@@ -29,32 +31,28 @@ class IssueManager:
         self._gh = Github(github_token)
         self._repo: Repository = self._gh.get_repo(repo_full_name)
         self._ensure_labels()
+        # 預先載入所有 open issues 的 video_id，避免逐一呼叫 Search API 觸發頻率限制
+        self._open_issue_map: dict[str, int] = {}  # video_id -> issue number
+        self._load_open_issues()
 
     # ── 公開方法 ──────────────────────────────────────────────────────────────
 
     def find_existing_issue(self, video_id: str) -> bool:
-        """回傳此影片是否已有 Issue（依 video_id 標記去重）。"""
-        marker = _MARKER_TPL.format(video_id=video_id)
-        # GitHub 全文搜尋只能搜開放 Issue；搜尋範圍指定此 repo
-        query = f'"{marker}" repo:{self._repo.full_name} is:issue'
-        try:
-            results = self._gh.search_issues(query)
-            return results.totalCount > 0
-        except GithubException as exc:
-            logger.warning("Issue 搜尋失敗（%s），保守跳過: %s", video_id, exc)
-            return True  # 保守處理：搜尋失敗時視為已存在，避免重複建立
+        """回傳此影片是否已有 Issue（依預載的快取查詢）。"""
+        return video_id in self._open_issue_map
 
     def close_stale_issue(self, video_id: str) -> bool:
         """關閉指定 video_id 的 Issue（觀看數不再成長時呼叫）。回傳是否成功關閉。"""
-        marker = _MARKER_TPL.format(video_id=video_id)
-        query = f'"{marker}" repo:{self._repo.full_name} is:issue is:open'
+        issue_number = self._open_issue_map.get(video_id)
+        if issue_number is None:
+            return False
         try:
-            results = self._gh.search_issues(query)
-            for issue in results:
-                issue.create_comment("📉 觀看數已連續多次檢查無明顯成長，自動關閉此 Issue。")
-                issue.edit(state="closed")
-                logger.info("Issue #%d 已自動關閉（影片 %s 觀看數停滯）", issue.number, video_id)
-                return True
+            issue = self._repo.get_issue(issue_number)
+            issue.create_comment("📉 觀看數已連續多次檢查無明顯成長，自動關閉此 Issue。")
+            issue.edit(state="closed")
+            logger.info("Issue #%d 已自動關閉（影片 %s 觀看數停滯）", issue.number, video_id)
+            del self._open_issue_map[video_id]
+            return True
         except GithubException as exc:
             logger.warning("關閉 Issue 失敗（%s）: %s", video_id, exc)
         return False
@@ -79,10 +77,23 @@ class IssueManager:
                 labels=labels,
             )
             logger.info("Issue #%d 已建立：%s", issue.number, video["title"])
+            self._open_issue_map[video["video_id"]] = issue.number
         except GithubException as exc:
             logger.error("建立 Issue 失敗（%s）: %s", video["video_id"], exc)
 
     # ── 私有輔助 ──────────────────────────────────────────────────────────────
+
+    def _load_open_issues(self) -> None:
+        """一次性載入所有帶 viral label 的 open issues，提取 video_id 建立快取。"""
+        try:
+            open_issues = self._repo.get_issues(state="open", labels=["viral"])
+            for issue in open_issues:
+                match = _MARKER_RE.search(issue.body or "")
+                if match:
+                    self._open_issue_map[match.group(1)] = issue.number
+            logger.info("已載入 %d 筆已存在的 viral Issues", len(self._open_issue_map))
+        except GithubException as exc:
+            logger.warning("載入 open issues 失敗: %s", exc)
 
     def _ensure_labels(self) -> None:
         """確保所有需要的 Labels 存在於 repo，不存在則自動建立。"""
