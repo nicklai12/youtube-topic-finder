@@ -16,6 +16,9 @@ _TRACKING_PATH = os.path.join(
     os.path.dirname(__file__), "..", "data", "tracking.json"
 )
 
+# tracking.json 中 Whisper 用量記錄的頂層 key
+_WHISPER_USAGE_KEY = "_whisper_usage"
+
 
 def load() -> dict[str, Any]:
     """載入 tracking.json；若不存在則回傳空 dict。"""
@@ -92,18 +95,48 @@ def purge_expired(data: dict[str, Any]) -> int:
     """移除超過 TRACKING_EXPIRY_DAYS 天未更新的記錄，回傳刪除筆數。"""
     cutoff = datetime.now(timezone.utc) - timedelta(days=config.TRACKING_EXPIRY_DAYS)
     expired = []
-    for video_id, record in data.items():
+    for key, record in data.items():
+        if key == _WHISPER_USAGE_KEY:
+            continue  # 獨立清理，後面操作
         updated_at_str = record.get("updated_at", "")
         try:
             updated_at = datetime.fromisoformat(updated_at_str)
             if updated_at < cutoff:
-                expired.append(video_id)
+                expired.append(key)
         except (ValueError, TypeError):
-            expired.append(video_id)
+            expired.append(key)
 
-    for video_id in expired:
-        del data[video_id]
+    for key in expired:
+        del data[key]
+
+    _purge_whisper_usage(data)
 
     if expired:
         logger.info("清理過期追蹤記錄 %d 筆。", len(expired))
     return len(expired)
+
+
+def get_whisper_usage_today(data: dict[str, Any]) -> float:
+    """回傳今日已使用的 Whisper 音訊秒數。"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return data.get(_WHISPER_USAGE_KEY, {}).get(today, {}).get("total_seconds", 0.0)
+
+
+def update_whisper_usage(data: dict[str, Any], duration_sec: float) -> None:
+    """對今日的 Whisper 用量累加 duration_sec 秒。"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    usage = data.setdefault(_WHISPER_USAGE_KEY, {})
+    day = usage.setdefault(today, {"total_seconds": 0.0, "count": 0})
+    day["total_seconds"] = round(day["total_seconds"] + duration_sec, 2)
+    day["count"] += 1
+
+
+def _purge_whisper_usage(data: dict[str, Any]) -> None:
+    """移除超過 7 天的 Whisper 用量日期記錄。"""
+    usage = data.get(_WHISPER_USAGE_KEY)
+    if not usage:
+        return
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    old_dates = [d for d in list(usage.keys()) if d < cutoff_date]
+    for d in old_dates:
+        del usage[d]

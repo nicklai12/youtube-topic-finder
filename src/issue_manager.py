@@ -158,7 +158,8 @@ def _build_body(
     angles_md = "\n".join(
         f"{i + 1}. {angle}" for i, angle in enumerate(analysis.get("recreate_angles", []))
     )
-    source_note = "有字幕" if analysis.get("has_transcript") else "僅 metadata"
+    source_map = {"youtube": "YouTube 字幕", "whisper": "Whisper 語音轉文字", "none": "僅 metadata"}
+    source_note = source_map.get(analysis.get("transcript_source", "none"), "僅 metadata")
 
     ai_section = f"""## 🤖 AI 分析
 

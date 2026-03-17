@@ -82,3 +82,10 @@ ANALYZER_PREFERRED_LANGS: list[str] = _analyzer.get(
 )
 # 送入 LLM 的字幕最大字元數
 ANALYZER_MAX_TRANSCRIPT_CHARS: int = _analyzer.get("max_transcript_chars", 15_000)
+
+# Whisper fallback 設定
+WHISPER_ENABLED: bool = _analyzer.get("whisper_enabled", True)
+WHISPER_MODEL: str = _analyzer.get("whisper_model", "whisper-large-v3-turbo")
+MAX_AUDIO_DURATION_MINUTES: int = _analyzer.get("max_audio_duration_minutes", 30)
+# Groq Whisper 每日可用約 7200 秒，預留 buffer 設為 6000 秒（100 分鐘）
+WHISPER_DAILY_LIMIT_SECONDS: int = _analyzer.get("whisper_daily_limit_seconds", 6000)

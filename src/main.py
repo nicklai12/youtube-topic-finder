@@ -38,12 +38,17 @@ def main() -> None:
         sys.exit(1)
 
     # ── 初始化 ────────────────────────────────────────────────────────────────
+    groq_api_key = os.environ.get("GROQ_API_KEY", "")
     yt = YouTubeClient(youtube_api_key)
     im = IssueManager(github_token, github_repo)
     tracking_data = tracker.load()
 
     issues_created = 0
     videos_checked = 0
+    youtube_transcript_count = 0
+    whisper_count = 0
+    whisper_total_seconds = 0.0
+    whisper_used_today = tracker.get_whisper_usage_today(tracking_data)
 
     # ── 主迴圈：遍歷所有主題與關鍵字 ─────────────────────────────────────────
     for topic_key, topic_cfg in config.TOPICS.items():
@@ -93,18 +98,38 @@ def main() -> None:
                 logger.info("影片 %s 已有 Issue，跳過。", video_id)
                 continue
 
-            # AI 分析（字幕 + Gemini）
+            # AI 分析（字幕 + Groq）
             analysis = None
             if config.ANALYZER_ENABLED:
-                transcript = get_transcript(
+                whisper_ok = (config.WHISPER_ENABLED
+                              and (whisper_used_today < config.WHISPER_DAILY_LIMIT_SECONDS))
+                if config.WHISPER_ENABLED and not whisper_ok:
+                    logger.warning(
+                        "Whisper 今日用量已達 %d 秒（上限 %d 秒），此影片降級為 metadata 分析",
+                        int(whisper_used_today), config.WHISPER_DAILY_LIMIT_SECONDS,
+                    )
+                tr = get_transcript(
                     video_id,
                     preferred_langs=config.ANALYZER_PREFERRED_LANGS,
                     max_chars=config.ANALYZER_MAX_TRANSCRIPT_CHARS,
+                    whisper_enabled=whisper_ok,
+                    whisper_model=config.WHISPER_MODEL,
+                    max_audio_duration_minutes=config.MAX_AUDIO_DURATION_MINUTES,
+                    groq_api_key=groq_api_key,
                 )
+                if tr.source == "youtube":
+                    youtube_transcript_count += 1
+                elif tr.source == "whisper":
+                    whisper_count += 1
+                    dur = tr.audio_duration_sec or 0.0
+                    whisper_total_seconds += dur
+                    whisper_used_today += dur
+                    tracker.update_whisper_usage(tracking_data, dur)
                 analysis = analyze_video(
                     video,
-                    transcript,
+                    tr.text,
                     model=config.ANALYZER_MODEL,
+                    transcript_source=tr.source,
                 )
 
             im.create_issue(video, reason, topic_label, growth_rate, analysis)
@@ -128,12 +153,16 @@ def main() -> None:
             tracker.save(tracking_data)
 
     # ── 執行摘要 ──────────────────────────────────────────────────────────────
+    whisper_min = int(whisper_total_seconds / 60)
+    used_today_min = int(whisper_used_today / 60)
+    limit_min = config.WHISPER_DAILY_LIMIT_SECONDS // 60
     logger.info(
-        "執行完畢｜檢查影片：%d 支｜新建 Issue：%d 個｜關閉 Issue：%d 個｜API 配額消耗：%d units",
-        videos_checked,
-        issues_created,
-        issues_closed,
-        yt.units_used,
+        "執行完畢｜檢查影片：%d 支｜新建 Issue：%d 個｜關閉 Issue：%d 個｜"
+        "API 配額消耗：%d units｜"
+        "YouTube 字幕：%d 支｜Whisper：%d 支（共 %d 分鐘）｜今日累計 %d/%d 分鐘",
+        videos_checked, issues_created, issues_closed, yt.units_used,
+        youtube_transcript_count, whisper_count, whisper_min,
+        used_today_min, limit_min,
     )
 
 

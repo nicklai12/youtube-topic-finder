@@ -17,8 +17,7 @@
 - **自動去重**：同一支影片不會重複建立 Issue
 - **自動分類**：Issue 自動貼上 `viral`、`tech`/`finance`、`view-threshold`/`growth-spike` 標籤
 - **自動關閉**：觀看數連續多次檢查無明顯成長（預設連續 3 次、即 18 小時）時，自動關閉 Issue 並留言說明
-- **AI 分析（可選）**：自動擷取影片字幕，透過 Groq Kimi K2 生成爆紅原因分析、內容摘要、二創角度建議，嵌入 Issue。未設定 API Key 時自動跳過，不影響原有功能
-- **歷史追蹤**：`data/tracking.json` 記錄每支影片的觀看數歷史，由 Actions 自動 commit 更新
+- **AI 分析（可選）**：自動擷取影片字幕，透過 Groq Kimi K2 生成爆紅原因分析、內容摘要、二創角度建議，嵌入 Issue。未設定 API Key 時自動跳過，不影響原有功能- **Whisper 語音轉文字（自動 fallback）**：當 YouTube 字幕無法取得時（IP 封鎖、影片無字幕），自動用 yt-dlp 下載音訊 + Groq Whisper API 語音轉文字，確保 AI 分析取得實際影片內容。內建每日用量追蹤與額度保護- **歷史追蹤**：`data/tracking.json` 記錄每支影片的觀看數歷史，由 Actions 自動 commit 更新
 
 ## 快速開始
 
@@ -110,6 +109,10 @@ analyzer:
   model: "moonshotai/kimi-k2-instruct-0905"          # 使用的 Groq 模型
   preferred_langs: ["zh-TW", "zh-Hant", "zh", "en"] # 字幕語言偏好
   max_transcript_chars: 15000                      # 送入 LLM 的字幕最大字元數
+  whisper_enabled: true                            # Whisper 語音轉文字 fallback
+  whisper_model: "whisper-large-v3-turbo"           # Whisper 模型
+  max_audio_duration_minutes: 30                   # 超過此時長的影片跳過 Whisper
+  whisper_daily_limit_seconds: 6000                # 每日 Whisper 用量上限（秒）
 ```
 
 完整參數說明請參考 [config.yml.example](config.yml.example)。
@@ -123,14 +126,17 @@ youtube-topic-finder/
 ├── data/tracking.json                 # 觀看數歷史（自動維護）
 ├── docs/
 │   ├── 01-youtube-viral-tracker-plan.md
-│   └── 02-ai-analyzer-plan.md
+│   ├── 02-ai-analyzer-plan.md
+│   ├── 03-migrate-gemini-to-groq-plan.md
+│   ├── 04-groq-model-comparison.md
+│   └── 05-whisper-fallback-plan.md
 ├── src/
 │   ├── config.py          # 載入 config.yml + 預設值
 │   ├── youtube_client.py  # YouTube API 封裝 + 配額計算器
 │   ├── tracker.py         # tracking.json 讀寫 + 成長率計算
 │   ├── viral_detector.py  # 爆款判定邏輯
 │   ├── issue_manager.py   # GitHub Issue 建立 + 去重 + 自動關閉
-│   ├── transcript.py      # YouTube 字幕擷取（免配額）
+│   ├── transcript.py      # YouTube 字幕擷取 + Whisper 語音轉文字 fallback
 │   ├── analyzer.py        # Groq Kimi K2 AI 分析
 │   └── main.py            # 主入口
 ├── requirements.txt
@@ -142,6 +148,7 @@ youtube-topic-finder/
 | 資源 | 免費額度 | 預估每日用量 |
 |------|---------|------------|
 | YouTube Data API v3 | 10,000 units/天 | ~2,420 units（24%） |
-| Groq API | 1,000 req/天、1,000 RPD、300K TPD | ~40 req（4%） |
+| Groq LLM API | 1,000 req/天、1,000 RPD、300K TPD | ~40 req（4%） |
+| Groq Whisper API | ~7,200 秒/天 | ~400 分鐘（預設上限 100 分鐘/天）|
 | GitHub Actions（Public） | 無限分鐘 | ~8 分鐘 |
 | GitHub API | 5,000 req/小時 | <200 req |

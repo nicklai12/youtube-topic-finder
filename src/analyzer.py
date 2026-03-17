@@ -51,6 +51,7 @@ def analyze_video(
     transcript: str | None,
     model: str = "moonshotai/kimi-k2-instruct-0905",
     api_key: str | None = None,
+    transcript_source: str = "none",
 ) -> dict[str, Any] | None:
     """
     使用 Groq Llama 分析爆款影片，回傳結構化分析結果。
@@ -60,9 +61,10 @@ def analyze_video(
         transcript: 影片字幕文字（由 transcript.get_transcript() 取得），無字幕時為 None
         model: Groq 模型名稱
         api_key: Groq API Key（若為 None 則從環境變數 GROQ_API_KEY 取得）
+        transcript_source: 字幕來源，"youtube" / "whisper" / "none"
 
     Returns:
-        包含 viral_reason / summary / recreate_angles / has_transcript 的字典；
+        包含 viral_reason / summary / recreate_angles / transcript_source 的字典；
         若無 API Key 或發生不可恢復的錯誤則回傳 None
     """
     key = api_key or os.environ.get("GROQ_API_KEY", "")
@@ -124,8 +126,9 @@ def analyze_video(
             if not isinstance(result["recreate_angles"], list):
                 result["recreate_angles"] = [str(result["recreate_angles"])]
 
-            result["has_transcript"] = transcript is not None
-            logger.info("影片 %s AI 分析完成（字幕：%s）", video["video_id"], "有" if transcript else "無")
+            result["transcript_source"] = transcript_source
+            source_label = {"youtube": "字幕（YouTube）", "whisper": "字幕（Whisper）", "none": "無"}.get(transcript_source, "無")
+            logger.info("影片 %s AI 分析完成（字幕：%s）", video["video_id"], source_label)
             return result
 
         except json.JSONDecodeError as exc:
