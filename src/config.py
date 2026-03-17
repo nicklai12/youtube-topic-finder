@@ -70,12 +70,12 @@ AUTO_CLOSE_STALE_COUNT: int = _auto_close.get("stale_count", 3)
 # 是否啟用自動關閉
 AUTO_CLOSE_ENABLED: bool = _auto_close.get("enabled", True)
 
-# ── AI 分析（Gemini Flash）────────────────────────────────────────────────────
+# ── AI 分析（Groq Llama）─────────────────────────────────────────────────────
 _analyzer = _cfg.get("analyzer", {})
-# 是否啟用 AI 分析（需設定 GEMINI_API_KEY 環境變數）
+# 是否啟用 AI 分析（需設定 GROQ_API_KEY 環境變數）
 ANALYZER_ENABLED: bool = _analyzer.get("enabled", True)
-# 使用的 Gemini 模型
-ANALYZER_MODEL: str = _analyzer.get("model", "gemini-2.0-flash")
+# 使用的 Groq 模型
+ANALYZER_MODEL: str = _analyzer.get("model", "moonshotai/kimi-k2-instruct-0905")
 # 字幕語言偏好順序
 ANALYZER_PREFERRED_LANGS: list[str] = _analyzer.get(
     "preferred_langs", ["zh-TW", "zh-Hant", "zh", "en"]

@@ -160,7 +160,7 @@ def _build_body(
 ### 💡 二創角度建議
 {angles_md}
 
-> ℹ️ 分析由 Gemini Flash 自動生成，僅供參考。字幕來源：{source_note}
+> ℹ️ 分析由 Kimi K2 (Groq) 自動生成，僅供參考。字幕來源：{source_note}
 """
 
     # 在 marker 前插入 AI 區塊

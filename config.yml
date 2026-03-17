@@ -65,12 +65,12 @@ auto_close:
   growth_below: 0.05
   # 連續幾次檢查「無成長」後自動關閉（預設 3 次 = 18 小時無成長）
   stale_count: 3
-# ── AI 分析（Gemini Flash）──────────────────────────────────────────────
+# ── AI 分析（Groq Llama）────────────────────────────────────────────────
 analyzer:
-  # 是否啟用 AI 分析（需在 GitHub Secrets 設定 GEMINI_API_KEY）
+  # 是否啟用 AI 分析（需在 GitHub Secrets 設定 GROQ_API_KEY）
   enabled: true
-  # 使用的 Gemini 模型（gemini-2.0-flash 免費配額最多）
-  model: "gemini-2.0-flash"
+  # 使用的 Groq 模型（Kimi K2 繁中品質最佳，免費 TPD 配額最寬裕）
+  model: "moonshotai/kimi-k2-instruct-0905"
   # 字幕語言偏好順序（依序嘗試，都沒有則降級為 metadata 分析）
   preferred_langs: ["zh-TW", "zh-Hant", "zh", "en"]
   # 送入 LLM 的字幕最大字元數（超出則截斷）
