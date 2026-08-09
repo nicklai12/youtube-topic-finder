@@ -53,7 +53,7 @@ SEARCH_MAX_RESULTS: int = _search.get("max_results", 25)
 _viral = _cfg.get("viral", {})
 THRESHOLD_FAST: dict = _viral.get("threshold_fast", {"hours": 48, "views": 50_000})
 THRESHOLD_SLOW: dict = _viral.get("threshold_slow", {"days": 7, "views": 500_000})
-GROWTH_RATE_THRESHOLD: float = _viral.get("growth_rate", 1.0)
+GROWTH_RATE_THRESHOLD: float = _viral.get("growth_rate", 0.5)
 
 # ── 配額保護 ──────────────────────────────────────────────────────────────────
 MAX_UNITS_PER_RUN: int = _cfg.get("quota", {}).get("max_units_per_run", 3_000)
@@ -66,7 +66,7 @@ _auto_close = _cfg.get("auto_close", {})
 # 當成長率低於此值時，計為一次「無成長」
 AUTO_CLOSE_GROWTH_BELOW: float = _auto_close.get("growth_below", 0.05)
 # 連續幾次「無成長」後自動關閉 Issue
-AUTO_CLOSE_STALE_COUNT: int = _auto_close.get("stale_count", 3)
+AUTO_CLOSE_STALE_COUNT: int = _auto_close.get("stale_count", 1)
 # 是否啟用自動關閉
 AUTO_CLOSE_ENABLED: bool = _auto_close.get("enabled", True)
 

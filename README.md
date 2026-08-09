@@ -1,22 +1,19 @@
 # YouTube 爆款影片自動追蹤器
 
-每 6 小時自動掃描「科技/程式」與「財經/投資」領域的 YouTube 影片，偵測爆款後在 GitHub Issues 建立紀錄。全程在 YouTube Data API v3 與 GitHub Actions 的**免費額度**內運行（每日約消耗 24% API 配額）。
+每天自動掃描「科技/程式」與「財經/投資」領域的 YouTube 影片，偵測爆款後在 GitHub Issues 建立紀錄。全程在 YouTube Data API v3 與 GitHub Actions 的**免費額度**內運行（每日約消耗 6% API 配額）。
 
 ## 功能
 
-- **定時執行**：GitHub Actions 每 6 小時觸發，也可手動觸發
+- **定時執行**：GitHub Actions 每天台北時間 17:00 觸發，也可手動觸發
   | UTC | 台灣時間（UTC+8） |
   |-----|-----------------|
-  | 00:00 | 08:00 |
-  | 06:00 | 14:00 |
-  | 12:00 | 20:00 |
-  | 18:00 | 02:00（隔日） |
+  | 09:00 | 17:00 |
 - **雙重爆款條件**：
   - 門檻條件：發布 48 小時內 > 5 萬觀看，或 7 天內 > 50 萬觀看
-  - 成長條件：6 小時內觀看數成長 > 100%
+  - 成長條件：自上次記錄以來觀看數成長 > 50%
 - **自動去重**：同一支影片不會重複建立 Issue
 - **自動分類**：Issue 自動貼上 `viral`、`tech`/`finance`、`view-threshold`/`growth-spike` 標籤
-- **自動關閉**：觀看數連續多次檢查無明顯成長（預設連續 3 次、即 18 小時）時，自動關閉 Issue 並留言說明
+- **自動關閉**：觀看數連續多次檢查無明顯成長（預設連續 1 次、即 1 天）時，自動關閉 Issue 並留言說明
 - **AI 分析（可選）**：自動擷取影片字幕，透過 Groq Kimi K2 生成爆紅原因分析、內容摘要、二創角度建議，嵌入 Issue。未設定 API Key 時自動跳過，不影響原有功能- **Whisper 語音轉文字（自動 fallback）**：當 YouTube 字幕無法取得時（IP 封鎖、影片無字幕），自動用 yt-dlp 下載音訊 + Groq Whisper API 語音轉文字，確保 AI 分析取得實際影片內容。內建每日用量追蹤與額度保護- **歷史追蹤**：`data/tracking.json` 記錄每支影片的觀看數歷史，由 Actions 自動 commit 更新
 
 ## 快速開始
@@ -87,7 +84,7 @@ viral:
   threshold_slow:     # 發布 7 天內 > 50 萬觀看
     days: 7
     views: 500000
-  growth_rate: 1.0    # 成長率門檻（1.0 = 100%）
+  growth_rate: 0.5    # 成長率門檻（0.5 = 50%；改為每天執行後，約對應原本每 6 小時 100% 的敏感度）
 
 search:
   published_within_days: 7
@@ -102,7 +99,7 @@ tracking:
 auto_close:
   enabled: true        # 觀看數不再成長時自動關閉 Issue
   growth_below: 0.05   # 低於 5% 視為無成長
-  stale_count: 3       # 連續 3 次（18 小時）無成長後自動關閉
+  stale_count: 1       # 連續 1 次（1 天）無成長後自動關閉
 
 analyzer:
   enabled: true                                   # 啟用 AI 分析（需設定 GROQ_API_KEY）
@@ -147,7 +144,7 @@ youtube-topic-finder/
 
 | 資源 | 免費額度 | 預估每日用量 |
 |------|---------|------------|
-| YouTube Data API v3 | 10,000 units/天 | ~2,420 units（24%） |
+| YouTube Data API v3 | 10,000 units/天 | ~605 units（約 6%） |
 | Groq LLM API | 1,000 req/天、1,000 RPD、300K TPD | ~40 req（4%） |
 | Groq Whisper API | ~7,200 秒/天 | ~400 分鐘（預設上限 100 分鐘/天）|
 | GitHub Actions（Public） | 無限分鐘 | ~8 分鐘 |

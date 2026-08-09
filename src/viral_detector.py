@@ -59,7 +59,7 @@ def is_viral(
         views_fmt = _fmt_views(view_count)
         return (
             True,
-            f"6 小時內觀看數成長 {pct}%（當前 {views_fmt} 觀看）",
+            f"自上次記錄以來觀看數成長 {pct}%（當前 {views_fmt} 觀看）",
         )
 
     return (False, "")
