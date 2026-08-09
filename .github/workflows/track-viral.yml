@@ -2,8 +2,8 @@ name: Track Viral YouTube Videos
 
 on:
   schedule:
-    # 每 6 小時執行一次（UTC 0:00 / 6:00 / 12:00 / 18:00）
-    - cron: "0 */6 * * *"
+    # 每天台北時間 17:00 執行一次（UTC 09:00）
+    - cron: "0 9 * * *"
   # 可在 Actions 頁面手動觸發，方便測試
   workflow_dispatch:
 
